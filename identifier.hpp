@@ -31,11 +31,13 @@ public:
     bool operator==(const MorseIdentifier &identifier) const;
     bool operator!=(const MorseIdentifier &identifier) const;
 
-    bool isNull() const { return !m_userId && !m_chatId; }
+    bool isNull() const;
+    bool isTgIdentifier() const { return m_userId || m_chatId; }
 
     quint32 userId() const { return m_userId; }
     quint32 chatId() const { return m_chatId; }
     Telegram::Peer toPeer() const;
+    QString phoneNumber() const;
     static MorseIdentifier fromPeer(const Telegram::Peer &peer);
     static MorseIdentifier fromChatId(quint32 chatId);
     static MorseIdentifier fromUserId(quint32 userId);
@@ -45,6 +47,7 @@ public:
     static MorseIdentifier fromString(const QString &string);
 
 private:
+    QString m_phoneNumber;
     quint32 m_userId;
     quint32 m_chatId;
 };
