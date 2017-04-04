@@ -137,6 +137,11 @@ MorseConnection::MorseConnection(const QDBusConnection &dbusConnection, const QS
                                                  << TP_QT_IFACE_CONNECTION_INTERFACE_AVATARS);
     plugInterface(Tp::AbstractConnectionInterfacePtr::dynamicCast(contactsIface));
 
+    addressingIface = Tp::BaseConnectionAddressingInterface::create();
+    addressingIface->setGetContactsByVCardFieldCallback(Tp::memFun(this, &MorseConnection::getContactsByVCardField));
+    addressingIface->setGetContactsByURICallback(Tp::memFun(this, &MorseConnection::getContactsByUri));
+    plugInterface(Tp::AbstractConnectionInterfacePtr::dynamicCast(addressingIface));
+
     /* Connection.Interface.SimplePresence */
     simplePresenceIface = Tp::BaseConnectionSimplePresenceInterface::create();
     simplePresenceIface->setStatuses(getSimpleStatusSpecMap());
@@ -742,6 +747,16 @@ Tp::ContactAttributesMap MorseConnection::getContactAttributes(const Tp::UIntLis
         }
     }
     return contactAttributes;
+}
+
+void MorseConnection::getContactsByVCardField(const QString &field, const QStringList &addresses, const QStringList &interfaces,
+                                              Tp::AddressingNormalizationMap &requested, Tp::ContactAttributesMap &attributes, Tp::DBusError *error)
+{
+}
+
+void MorseConnection::getContactsByUri(const QStringList &uris, const QStringList &interfaces,
+                                       Tp::AddressingNormalizationMap &requested, Tp::ContactAttributesMap &attributes, Tp::DBusError *error)
+{
 }
 
 void MorseConnection::requestSubscription(const Tp::UIntList &handles, const QString &message, Tp::DBusError *error)

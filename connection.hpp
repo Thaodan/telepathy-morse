@@ -54,6 +54,12 @@ public:
     Tp::ContactAttributesMap getContactListAttributes(const QStringList &interfaces, bool hold, Tp::DBusError *error);
     Tp::ContactAttributesMap getContactAttributes(const Tp::UIntList &handles, const QStringList &interfaces, Tp::DBusError *error);
 
+    void getContactsByVCardField(const QString &field, const QStringList &addresses, const QStringList &interfaces,
+                                 Tp::AddressingNormalizationMap &requested, Tp::ContactAttributesMap &attributes, Tp::DBusError *error);
+
+    void getContactsByUri(const QStringList &uris, const QStringList &interfaces,
+                          Tp::AddressingNormalizationMap &requested, Tp::ContactAttributesMap &attributes, Tp::DBusError *error);
+
     void requestSubscription(const Tp::UIntList &handles, const QString &message, Tp::DBusError *error);
     void removeContacts(const Tp::UIntList &handles, Tp::DBusError *error);
 

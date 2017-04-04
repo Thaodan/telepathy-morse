@@ -51,8 +51,8 @@ MorseProtocol::MorseProtocol(const QDBusConnection &dbusConnection, const QStrin
     setNormalizeContactCallback(memFun(this, &MorseProtocol::normalizeContact));
 
     addrIface = Tp::BaseProtocolAddressingInterface::create();
-    addrIface->setAddressableVCardFields(QStringList() << QLatin1String("tel"));
-    addrIface->setAddressableUriSchemes(QStringList() << QLatin1String("tel"));
+    addrIface->setAddressableVCardFields( { QStringLiteral("tel") });
+    addrIface->setAddressableUriSchemes( { QStringLiteral("tel"), QStringLiteral("tg") });
     addrIface->setNormalizeVCardAddressCallback(memFun(this, &MorseProtocol::normalizeVCardAddress));
     addrIface->setNormalizeContactUriCallback(memFun(this, &MorseProtocol::normalizeContactUri));
     plugInterface(Tp::AbstractProtocolInterfacePtr::dynamicCast(addrIface));
