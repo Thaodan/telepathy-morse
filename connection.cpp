@@ -52,6 +52,18 @@ static const QString secretsDirPath = QLatin1String("/secrets/");
 static const QString c_onlineSimpleStatusKey = QLatin1String("available");
 static const QString c_saslMechanismTelepathyPassword = QLatin1String("X-TELEPATHY-PASSWORD");
 
+static const QStringList s_groupChatModeStrings = {
+    "full",
+    "map",
+    "disable"
+};
+
+static const QVector<MorseConnection::GroupChatMode> s_groupChatModeValues = {
+    MorseConnection::FullFeature,
+    MorseConnection::MapToPersonalChat,
+    MorseConnection::Disable
+};
+
 Tp::SimpleStatusSpecMap MorseConnection::getSimpleStatusSpecMap()
 {
     //Presence
@@ -83,7 +95,7 @@ Tp::SimpleStatusSpecMap MorseConnection::getSimpleStatusSpecMap()
     return specs;
 }
 
-Tp::RequestableChannelClassSpecList MorseConnection::getRequestableChannelList()
+Tp::RequestableChannelClassSpecList MorseConnection::getRequestableChannelList(bool addGroupChat)
 {
     Tp::RequestableChannelClassSpecList result;
 
@@ -95,6 +107,9 @@ Tp::RequestableChannelClassSpecList MorseConnection::getRequestableChannelList()
     personalChat.allowedProperties.append(TP_QT_IFACE_CHANNEL + QLatin1String(".TargetID"));
     result << Tp::RequestableChannelClassSpec(personalChat);
 
+    if (!addGroupChat) {
+        return result;
+    }
 #ifdef ENABLE_GROUP_CHAT
     Tp::RequestableChannelClass groupChat;
     groupChat.fixedProperties[TP_QT_IFACE_CHANNEL + QLatin1String(".ChannelType")] = TP_QT_IFACE_CHANNEL_TYPE_TEXT;
@@ -111,13 +126,39 @@ Tp::RequestableChannelClassSpecList MorseConnection::getRequestableChannelList()
     return result;
 }
 
+MorseConnection::GroupChatMode MorseConnection::groupChatModeFromString(const QString &modeStr)
+{
+    if (s_groupChatModeStrings.contains(modeStr)) {
+        return s_groupChatModeValues.at(s_groupChatModeStrings.indexOf(modeStr));
+    }
+    qWarning() << "Unable to get group chat mode from string" << modeStr;
+    qWarning() << "Valid values:" << s_groupChatModeStrings;
+    return s_groupChatModeValues.first();
+}
+
+QString MorseConnection::groupChatModeToString(GroupChatMode mode)
+{
+    if (s_groupChatModeValues.contains(mode)) {
+        return s_groupChatModeStrings.at(s_groupChatModeValues.indexOf(mode));
+    }
+    qWarning() << "Unable to get string for group chat mode" << mode;
+    return s_groupChatModeStrings.first();
+}
+
 MorseConnection::MorseConnection(const QDBusConnection &dbusConnection, const QString &cmName, const QString &protocolName, const QVariantMap &parameters) :
     Tp::BaseConnection(dbusConnection, cmName, protocolName, parameters),
     m_core(0),
     m_passwordInfo(0),
+    m_groupChatMode(GroupChatMode::FullFeature),
     m_authReconnectionsCount(0)
 {
     qDebug() << Q_FUNC_INFO;
+
+    const QString chatMode = parameters.value(QLatin1String("groupchat-mode")).toString();
+    if (!chatMode.isEmpty()) {
+        m_groupChatMode = groupChatModeFromString(chatMode);
+    }
+
     /* Connection.Interface.Contacts */
     contactsIface = Tp::BaseConnectionContactsInterface::create();
     contactsIface->setGetContactAttributesCallback(Tp::memFun(this, &MorseConnection::getContactAttributes));
@@ -181,18 +222,20 @@ MorseConnection::MorseConnection(const QDBusConnection &dbusConnection, const QS
     avatarsIface->setRequestAvatarsCallback(Tp::memFun(this, &MorseConnection::requestAvatars));
     plugInterface(Tp::AbstractConnectionInterfacePtr::dynamicCast(avatarsIface));
 
+    if (m_groupChatMode != GroupChatMode::Disabled) {
 #ifdef ENABLE_GROUP_CHAT
 # ifdef USE_BUNDLED_GROUPS_IFACE
-    ConnectionContactGroupsInterfacePtr groupsIface = ConnectionContactGroupsInterface::create();
+        ConnectionContactGroupsInterfacePtr groupsIface = ConnectionContactGroupsInterface::create();
 # else
-    Tp::BaseConnectionContactGroupsInterfacePtr groupsIface = Tp::BaseConnectionContactGroupsInterface::create();
+        Tp::BaseConnectionContactGroupsInterfacePtr groupsIface = Tp::BaseConnectionContactGroupsInterface::create();
 # endif
-    plugInterface(Tp::AbstractConnectionInterfacePtr::dynamicCast(groupsIface));
+        plugInterface(Tp::AbstractConnectionInterfacePtr::dynamicCast(groupsIface));
 #endif
+    }
 
     /* Connection.Interface.Requests */
     requestsIface = Tp::BaseConnectionRequestsInterface::create(this);
-    requestsIface->requestableChannelClasses = getRequestableChannelList().bareClasses();
+    requestsIface->requestableChannelClasses = getRequestableChannelList(/* addGroupChat */ m_groupChatMode == GroupChatMode::FullFeature).bareClasses();
 
     plugInterface(Tp::AbstractConnectionInterfacePtr::dynamicCast(requestsIface));
 
@@ -951,6 +994,10 @@ uint MorseConnection::ensureContact(const MorseIdentifier &identifier)
 
 uint MorseConnection::ensureChat(const MorseIdentifier &identifier)
 {
+    if (m_groupChatMode == GroupChatMode::MapToPersonalChat) {
+        return ensureContact(identifier);
+    }
+
     uint handle = getChatHandle(identifier);
     if (!handle) {
         if (m_chatHandles.isEmpty()) {
@@ -1077,11 +1124,15 @@ void MorseConnection::whenMessageReceived(const Telegram::Message &message)
 {
     bool chatMessage = message.peer().type != Telegram::Peer::User;
 
+    if (chatMessage && (m_groupChatMode == GroupChatMode::Disabled)) {
+        return;
+    }
+
     uint contactHandle = ensureContact(MorseIdentifier::fromUserId(message.fromId));
     uint targetHandle = ensureHandle(MorseIdentifier::fromPeer(message.peer()));
     uint initiatorHandle = 0;
 
-    if (chatMessage) {
+    if (chatMessage && (m_groupChatMode == GroupChatMode::FullFeature)) {
         initiatorHandle = contactHandle;
     } else {
         initiatorHandle = targetHandle;

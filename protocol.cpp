@@ -36,6 +36,8 @@ MorseProtocol::MorseProtocol(const QDBusConnection &dbusConnection, const QStrin
     setParameters(Tp::ProtocolParameterList()
                   << Tp::ProtocolParameter(QLatin1String("account"), QLatin1String("s"), Tp::ConnMgrParamFlagRequired)
                   << Tp::ProtocolParameter(QLatin1String("keepalive-interval"), QLatin1String("u"), Tp::ConnMgrParamFlagHasDefault, 15)
+                  << Tp::ProtocolParameter(QLatin1String("groupchat-mode"), QLatin1String("s"), Tp::ConnMgrParamFlagHasDefault,
+                                           MorseConnection::groupChatModeToString(MorseConnection::GroupChatMode::FullFeature))
                   );
 
     setRequestableChannelClasses(MorseConnection::getRequestableChannelList());

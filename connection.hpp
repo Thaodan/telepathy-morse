@@ -34,13 +34,21 @@ class MorseConnection : public Tp::BaseConnection
 {
     Q_OBJECT
 public:
+    enum class GroupChatMode {
+        FullFeature,
+        MapToPersonalChat,
+        Disabled
+    };
+
     MorseConnection(const QDBusConnection &dbusConnection,
             const QString &cmName, const QString &protocolName,
             const QVariantMap &parameters);
     ~MorseConnection();
 
     static Tp::SimpleStatusSpecMap getSimpleStatusSpecMap();
-    static Tp::RequestableChannelClassSpecList getRequestableChannelList();
+    static Tp::RequestableChannelClassSpecList getRequestableChannelList(bool addGroupChat = true);
+    static GroupChatMode groupChatModeFromString(const QString &modeStr);
+    static QString groupChatModeToString(GroupChatMode mode);
 
     void doConnect(Tp::DBusError *error);
 
@@ -152,6 +160,7 @@ private:
     CTelegramCore *m_core;
     Telegram::PasswordInfo *m_passwordInfo;
 
+    GroupChatMode m_groupChatMode;
     int m_authReconnectionsCount;
 
     QString m_selfPhone;
