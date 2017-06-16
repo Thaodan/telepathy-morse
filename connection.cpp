@@ -1111,6 +1111,9 @@ void MorseConnection::setSubscriptionState(const QVector<MorseIdentifier> &ident
 void MorseConnection::whenMessageReceived(const Telegram::Message &message)
 {
     bool groupChatMessage = peerIsRoom(message.peer());
+    if (groupChatMessage) {
+        return; // Ignore
+    }
     uint targetHandle = ensureHandle(message.peer());
 
     //TODO: initiator should be group creator
