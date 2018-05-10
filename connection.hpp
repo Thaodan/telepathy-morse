@@ -104,6 +104,7 @@ private slots:
 
 protected:
     Tp::BaseChannelPtr createRoomListChannel();
+    void prefetchHistory(const Telegram::Peer peer);
 
 private:
     static QByteArray getSessionData(const QString &phone);

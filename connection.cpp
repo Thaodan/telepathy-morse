@@ -1178,6 +1178,7 @@ void MorseConnection::onContactListChanged()
 
 #ifdef DIALOGS_AS_CONTACTLIST
     for (const Telegram::Peer peer : ids) {
+//        prefetchHistory(peer);
         if (peerIsRoom(peer)) {
             continue;
         }
@@ -1301,6 +1302,13 @@ Tp::BaseChannelPtr MorseConnection::createRoomListChannel()
     baseChannel->plugInterface(Tp::AbstractChannelInterfacePtr::dynamicCast(roomListChannel));
 
     return baseChannel;
+}
+
+void MorseConnection::prefetchHistory(const Telegram::Peer peer)
+{
+    QTimer::singleShot(5000, this, [this, peer]() {
+        m_core->requestHistory(peer, 0, 20);
+    });
 }
 
 Tp::AvatarTokenMap MorseConnection::getKnownAvatarTokens(const Tp::UIntList &contacts, Tp::DBusError *error)

@@ -134,6 +134,10 @@ MorseTextChannel::MorseTextChannel(MorseConnection *morseConnection, Tp::BaseCha
             SLOT(setMessageOutboxRead(Telegram::Peer,quint32)));
     connect(m_core, SIGNAL(sentMessageIdReceived(quint64,quint32)),
             SLOT(setResolvedMessageId(quint64,quint32)));
+
+    QTimer::singleShot(3000, this, [this]() {
+        m_core->requestHistory(m_targetID, 0, 20);
+    });
 }
 
 MorseTextChannelPtr MorseTextChannel::create(MorseConnection *morseConnection, Tp::BaseChannel *baseChannel)
