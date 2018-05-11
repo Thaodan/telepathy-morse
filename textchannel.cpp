@@ -135,9 +135,13 @@ MorseTextChannel::MorseTextChannel(MorseConnection *morseConnection, Tp::BaseCha
     connect(m_core, SIGNAL(sentMessageIdReceived(quint64,quint32)),
             SLOT(setResolvedMessageId(quint64,quint32)));
 
-    QTimer::singleShot(3000, this, [this]() {
-        m_core->requestHistory(m_targetID, 0, 20);
-    });
+    static bool a = false;
+    if (!a) {
+        QTimer::singleShot(3000, this, [this]() {
+            m_core->requestHistory(m_targetID, 0, 20);
+        });
+//        a = true;
+    }
 }
 
 MorseTextChannelPtr MorseTextChannel::create(MorseConnection *morseConnection, Tp::BaseChannel *baseChannel)
@@ -249,6 +253,23 @@ void MorseTextChannel::onMessageReceived(const Telegram::Message &message)
     }
     partList << header;
 
+    qWarning().noquote() << token << message.text << "forward:" << message.forwardFromPeer().id;
+
+    if (message.forwardFromPeer().isValid()) {
+        const MorseIdentifier id = message.forwardFromPeer();
+        const uint fromHandle = m_connection->ensureHandle(id);
+        Tp::MessagePart forwardHeader;
+        forwardHeader[QLatin1String("interface")] = QDBusVariant(TP_QT_IFACE_CHANNEL + QLatin1String(".Interface.Forwarding"));
+        forwardHeader[QLatin1String("message-sender")]    = QDBusVariant(fromHandle);
+        forwardHeader[QLatin1String("message-sender-id")] = QDBusVariant(id.toString());
+        const QString alias = m_connection->getAlias(id);
+        if (!alias.isEmpty()) {
+            forwardHeader[QLatin1String("message-sender-alias")] = QDBusVariant(alias);
+        }
+        forwardHeader[QLatin1String("message-sent")] = QDBusVariant(message.fwdTimestamp);
+        partList << forwardHeader;
+    }
+
     Tp::MessagePartList body;
     if (!message.text.isEmpty()) {
         Tp::MessagePart text;
@@ -294,6 +315,17 @@ void MorseTextChannel::onMessageReceived(const Telegram::Message &message)
         default:
             handled = false;
             break;
+        }
+
+        const QByteArray cachedContent = info.getCachedPhoto();
+        if (!cachedContent.isEmpty()) {
+            Tp::MessagePart thumbnailMessage;
+            thumbnailMessage[QLatin1String("content-type")] = QDBusVariant(QLatin1String("image/jpeg"));
+            thumbnailMessage[QLatin1String("alternative")] = QDBusVariant(QLatin1String("multimedia"));
+            thumbnailMessage[QLatin1String("size")] = QDBusVariant(static_cast<uint>(cachedContent.size()));
+            thumbnailMessage[QLatin1String("thumbnail")] = QDBusVariant(true);
+            thumbnailMessage[QLatin1String("content")] = QDBusVariant(cachedContent);
+            body << thumbnailMessage;
         }
 
         Tp::MessagePart textMessage;
