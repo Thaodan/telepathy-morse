@@ -344,7 +344,8 @@ void MorseTextChannel::onMessageReceived(const Telegram::Message &message)
         textMessage[QLatin1String("content-type")] = QDBusVariant(QLatin1String("text/plain"));
         textMessage[QLatin1String("alternative")] = QDBusVariant(QLatin1String("multimedia"));
 
-        if (info.alt().isEmpty()) {
+        const QString alt = !info.caption().isEmpty() ? info.caption() : info.alt();
+        if (alt.isEmpty()) {
             const QString notHandledText = tr("Telepathy-Morse doesn't support this type of multimedia messages yet.");
             const QString badAlternativeText = tr("Telepathy client doesn't support this type of multimedia messages.");
             const QString notSupportedText = handled ? badAlternativeText : notHandledText;
@@ -354,7 +355,7 @@ void MorseTextChannel::onMessageReceived(const Telegram::Message &message)
                 textMessage[QLatin1String("content")] = QDBusVariant(QLatin1Char('\n') + notSupportedText);
             }
         } else {
-            textMessage[QLatin1String("content")] = QDBusVariant(info.alt());
+            textMessage[QLatin1String("content")] = QDBusVariant(alt);
         }
 
         body << textMessage;
