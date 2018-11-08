@@ -35,6 +35,9 @@ MorseProtocol::MorseProtocol(const QDBusConnection &dbusConnection, const QStrin
     qDebug() << Q_FUNC_INFO;
     setParameters(Tp::ProtocolParameterList()
                   << Tp::ProtocolParameter(QLatin1String("account"), QLatin1String("s"), Tp::ConnMgrParamFlagRequired)
+                  << Tp::ProtocolParameter(QLatin1String("server"), QLatin1String("s"), Tp::ConnMgrParamFlagHasDefault)
+                  << Tp::ProtocolParameter(QLatin1String("port"), QLatin1String("u"), 0)
+                  << Tp::ProtocolParameter(QLatin1String("server-key"), QLatin1String("s"), Tp::ConnMgrParamFlagHasDefault)
                   << Tp::ProtocolParameter(QLatin1String("keepalive-interval"), QLatin1String("u"), Tp::ConnMgrParamFlagHasDefault, 15)
                   << Tp::ProtocolParameter(QLatin1String("proxy-type"), QLatin1String("s"), 0) // ATM we have only socks5 support, but Telegram supports http-proxy too
                   << Tp::ProtocolParameter(QLatin1String("proxy-server"), QLatin1String("s"), 0)
@@ -73,6 +76,21 @@ MorseProtocol::~MorseProtocol()
 QString MorseProtocol::getAccount(const QVariantMap &parameters)
 {
     return parameters.value(QStringLiteral("account")).toString();
+}
+
+QString MorseProtocol::getServer(const QVariantMap &parameters)
+{
+    return parameters.value(QStringLiteral("server")).toString();
+}
+
+quint16 MorseProtocol::getServerPort(const QVariantMap &parameters)
+{
+    return parameters.value(QLatin1String("port"), 0u).toUInt();
+}
+
+QString MorseProtocol::getServerKey(const QVariantMap &parameters)
+{
+    return parameters.value(QStringLiteral("server-key")).toString();
 }
 
 uint MorseProtocol::getKeepAliveInterval(const QVariantMap &parameters, uint defaultValue)
