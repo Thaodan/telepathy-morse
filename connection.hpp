@@ -24,13 +24,31 @@
 #include <TelepathyQt/RequestableChannelClassSpec>
 #include <TelepathyQt/RequestableChannelClassSpecList>
 
+#include <TelegramQt/ConnectionApi>
 #include <TelegramQt/TelegramNamespace>
 
 #include "identifier.hpp"
 
 class CAppInformation;
-class CTelegramCore;
 class CFileManager;
+
+namespace Telegram {
+
+namespace Client {
+
+class AuthOperation;
+class Client;
+class ContactList;
+class DialogList;
+class MessagesOperation;
+
+} // Client namespace
+
+} // Telegram namespace
+
+struct MorseDialogState {
+    quint32 lastMessageId = 0;
+};
 
 class MorseConnection : public Tp::BaseConnection
 {
@@ -46,6 +64,7 @@ public:
     static Tp::RequestableChannelClassSpecList getRequestableChannelList();
 
     void doConnect(Tp::DBusError *error);
+    void signInOrUp();
 
     QStringList inspectHandles(uint handleType, const Tp::UIntList &handles, Tp::DBusError *error);
     Tp::BaseChannelPtr createChannelCB(const QVariantMap &request, Tp::DBusError *error);
@@ -76,10 +95,14 @@ public:
     uint ensureContact(const MorseIdentifier &identifier);
     uint ensureChat(const MorseIdentifier &identifier);
 
-    CTelegramCore *client() const { return m_client; }
+    Telegram::Client::Client *core() const { return m_client; }
+
+    void updateDialogLastMessageId(const Telegram::Peer &peer, quint32 lastMessageId);
+    MorseDialogState getDialogState(const Telegram::Peer &peer) const;
 
 public slots:
-    void onMessageReceived(const Telegram::Message &message);
+    void onMessageReceived(const Telegram::Peer peer, quint32 messageId);
+    void onMessagesReceived(const Telegram::Peer peer, QVector<quint32> messageIds);
     void onChatChanged(quint32 chatId);
     void setContactStatus(quint32 userId, TelegramNamespace::ContactStatus status);
 
@@ -87,17 +110,23 @@ signals:
     void chatDetailsChanged(quint32 chatId, const Tp::UIntList &handles);
 
 private slots:
-    void onConnectionStateChanged(TelegramNamespace::ConnectionState state);
+    void onConnectionStatusChanged(Telegram::Client::ConnectionApi::Status status,
+                                   Telegram::Client::ConnectionApi::StatusReason reason);
     void onAuthenticated();
     void onSelfUserAvailable();
     void onAuthErrorReceived(TelegramNamespace::UnauthorizedError errorCode, const QString &errorMessage);
     void onAuthCodeRequired();
-    void onPasswordInfoReceived(quint64 requestId);
-    void onAuthSignErrorReceived(TelegramNamespace::AuthSignError errorCode, const QString &errorMessage);
+    void onAuthCodeCheckFailed(int status);
+    void onPasswordRequired();
+    void onPasswordCheckFailed();
+    void onSignInFinished();
+    void onCheckInFinished(Telegram::Client::AuthOperation *checkInOperation);
     void onConnectionReady();
     void onContactListChanged();
+    void onDialogsReady();
     void onDisconnected();
     void onFileRequestCompleted(const QString &uniqueId);
+    void onHistoryReceived(Telegram::Client::MessagesOperation *operation);
 
     /* Channel.Type.RoomList */
     void onGotRooms();
@@ -106,10 +135,6 @@ protected:
     Tp::BaseChannelPtr createRoomListChannel();
 
 private:
-    static QByteArray getSessionData(const QString &phone);
-    static bool saveSessionData(const QString &phone, const QByteArray &data);
-
-    void tryToSaveData();
     bool peerIsRoom(const Telegram::Peer peer) const;
 
     uint getHandle(const MorseIdentifier &identifier) const;
@@ -136,6 +161,10 @@ private:
 
     void checkConnected();
 
+    void loadState();
+    void saveState();
+    QString getAccountDataDirectory() const;
+
     Tp::BaseConnectionContactsInterfacePtr contactsIface;
     Tp::BaseConnectionSimplePresenceInterfacePtr simplePresenceIface;
     Tp::BaseConnectionContactListInterfacePtr contactListIface;
@@ -156,15 +185,21 @@ private:
     /* Maps a contact handle to its subscription state */
     QHash<uint, uint> m_contactsSubscription;
     QHash<QString,Telegram::Peer> m_peerPictureRequests;
+    QHash<Telegram::Peer, MorseDialogState> m_dialogsState;
 
-    CAppInformation *m_appInfo;
-    CTelegramCore *m_client;
-    CFileManager *m_fileManager;
-    Telegram::PasswordInfo *m_passwordInfo;
+    CAppInformation *m_appInfo = nullptr;
+    Telegram::Client::Client *m_client = nullptr;
+    Telegram::Client::AuthOperation *m_signOperation = nullptr;
+    Telegram::Client::DialogList *m_dialogs = nullptr;
+    Telegram::Client::ContactList *m_contacts = nullptr;
+    CFileManager *m_fileManager = nullptr;
 
-    int m_authReconnectionsCount;
+    int m_authReconnectionsCount = 0;
 
     QString m_selfPhone;
+    QString m_serverAddress;
+    QString m_serverKeyFile;
+    uint m_serverPort = 0;
     uint m_keepAliveInterval;
 };
 
