@@ -146,6 +146,11 @@ MorseConnection::MorseConnection(const QDBusConnection &dbusConnection, const QS
     m_serverAddress = MorseProtocol::getServerAddress(parameters);
     m_serverPort = MorseProtocol::getServerPort(parameters);
     m_serverKeyFile = MorseProtocol::getServerKey(parameters);
+
+//    m_serverAddress = QLatin1String("192.168.2.8");
+//    m_serverPort = 11441;
+//    m_serverKeyFile = QLatin1String("/home/user/TelegramServer/public_key.pem");
+
     m_keepAliveInterval = MorseProtocol::getKeepAliveInterval(parameters, Client::Settings::defaultPingInterval() / 1000);
 
     /* Connection.Interface.Contacts */
@@ -313,6 +318,14 @@ MorseConnection::MorseConnection(const QDBusConnection &dbusConnection, const QS
             qWarning() << "Unknown proxy type" << proxyType << ", ignored.";
         }
     }
+    {
+        QNetworkProxy proxy;
+        proxy.setType(QNetworkProxy::Socks5Proxy);
+        proxy.setHostName(QLatin1String("127.0.0.1"));
+        proxy.setPort(12343);
+        clientSettings->setProxy(proxy);
+    }
+
     m_fileManager = new CFileManager(m_client, this);
     connect(m_fileManager, &CFileManager::requestComplete, this, &MorseConnection::onFileRequestCompleted);
 
