@@ -1191,15 +1191,26 @@ void MorseConnection::onMessageReceived(const Peer peer, quint32 messageId)
     return onMessagesReceived(peer, {messageId});
 }
 
-void MorseConnection::onMessagesReceived(const Peer peer, QVector<quint32> messageIds)
+void MorseConnection::onMessagesReceived(const Peer peer, const QVector<quint32> &messageIds)
 {
-    if (messageIds.isEmpty()) {
-        return;
-    }
     bool groupChatMessage = peerIsRoom(peer);
-    uint targetHandle = ensureHandle(peer);
 
     if (groupChatMessage) {
+        return;
+    }
+
+    uint targetHandle = ensureHandle(peer);
+
+    MorseDialogState dialogState = getDialogState(peer);
+    QVector<quint32> newIds;
+    for (const quint32 id : messageIds) {
+        if (id <= dialogState.lastMessageId) {
+            continue;
+        }
+        newIds.append(id);
+    }
+
+    if (newIds.isEmpty()) {
         return;
     }
 
@@ -1225,16 +1236,12 @@ void MorseConnection::onMessagesReceived(const Peer peer, QVector<quint32> messa
         return;
     }
 
-    quint32 lastMessageId = 0;
-    for (const quint32 id : messageIds) {
-        if (id > lastMessageId) {
-            lastMessageId = id;
-        }
+    for (const quint32 id : newIds) {
         Telegram::Message message;
         m_client->dataStorage()->getMessage(&message, peer, id);
         textChannel->onMessageReceived(message);
+        updateDialogLastMessageId(peer, id);
     }
-    updateDialogLastMessageId(peer, lastMessageId);
 }
 
 void MorseConnection::onChatChanged(quint32 chatId)

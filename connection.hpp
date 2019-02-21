@@ -102,7 +102,7 @@ public:
 
 public slots:
     void onMessageReceived(const Telegram::Peer peer, quint32 messageId);
-    void onMessagesReceived(const Telegram::Peer peer, QVector<quint32> messageIds);
+    void onMessagesReceived(const Telegram::Peer peer, const QVector<quint32> &messageIds);
     void onChatChanged(quint32 chatId);
     void setContactStatus(quint32 userId, TelegramNamespace::ContactStatus status);
 
