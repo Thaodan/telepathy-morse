@@ -779,8 +779,8 @@ Tp::ContactAttributesMap MorseConnection::getContactAttributes(const Tp::UIntLis
             attributes[TP_QT_IFACE_CONNECTION + QLatin1String("/contact-id")] = identifier.toString();
 
             if (interfaces.contains(TP_QT_IFACE_CONNECTION_INTERFACE_CONTACT_LIST)) {
-                attributes[TP_QT_IFACE_CONNECTION_INTERFACE_CONTACT_LIST + QLatin1String("/subscribe")] = m_contactsSubscription.value(handle, Tp::SubscriptionStateUnknown);
-                attributes[TP_QT_IFACE_CONNECTION_INTERFACE_CONTACT_LIST + QLatin1String("/publish")] = m_contactsSubscription.value(handle, Tp::SubscriptionStateUnknown);
+                attributes[TP_QT_IFACE_CONNECTION_INTERFACE_CONTACT_LIST + QLatin1String("/subscribe")] = m_contactsSubscription.value(handle, Tp::SubscriptionStateYes);
+                attributes[TP_QT_IFACE_CONNECTION_INTERFACE_CONTACT_LIST + QLatin1String("/publish")] = m_contactsSubscription.value(handle, Tp::SubscriptionStateYes);
             }
 
             if (interfaces.contains(TP_QT_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE)) {
@@ -995,6 +995,10 @@ QString MorseConnection::getAlias(const MorseIdentifier identifier)
 
 Tp::SimplePresence MorseConnection::getPresence(uint handle)
 {
+    Tp::SimplePresence presence;
+    presence.status = QLatin1String("available");
+    presence.type = Tp::ConnectionPresenceTypeAvailable;
+    return presence;
 #if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
     return *simplePresenceIface->getPresences(Tp::UIntList() << handle).constBegin();
 #else
@@ -1108,13 +1112,15 @@ void MorseConnection::updateContactsStatus(const QVector<MorseIdentifier> &ident
             continue;
         }
 
-        TelegramNamespace::ContactStatus st = TelegramNamespace::ContactStatusUnknown;
+        TelegramNamespace::ContactStatus st = TelegramNamespace::ContactStatusOnline;
 
         if (m_client) {
-            Telegram::UserInfo info;
-            m_client->dataStorage()->getUserInfo(&info, identifier.userId());
-
-            st = info.status();
+            // We list broadcast channels as Contacts
+            if (identifier.type == Telegram::Peer::User) {
+                Telegram::UserInfo info;
+                m_client->dataStorage()->getUserInfo(&info, identifier.userId());
+                st = info.status();
+            }
         }
 
         Tp::SimplePresence presence;
@@ -1626,6 +1632,8 @@ void MorseConnection::setContactStatus(quint32 userId, TelegramNamespace::Contac
         break;
     }
 
+    presence.status = QLatin1String("available");
+    presence.type = Tp::ConnectionPresenceTypeAvailable;
     newPresences[handle] = presence;
 
     simplePresenceIface->setPresences(newPresences);
