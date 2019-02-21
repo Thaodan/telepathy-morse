@@ -1199,6 +1199,10 @@ void MorseConnection::onMessagesReceived(const Peer peer, QVector<quint32> messa
     bool groupChatMessage = peerIsRoom(peer);
     uint targetHandle = ensureHandle(peer);
 
+    if (groupChatMessage) {
+        return;
+    }
+
     //TODO: initiator should be group creator
     Tp::DBusError error;
     bool yours;
@@ -1265,7 +1269,7 @@ void MorseConnection::onContactListChanged()
     newContactListHandles.reserve(ids.count());
     newContactListIdentifiers.reserve(ids.count());
 
-    for (const Telegram::Peer peer : ids) {
+    for (const Telegram::Peer &peer : ids) {
         if (peerIsRoom(peer)) {
             continue;
         }
@@ -1347,6 +1351,8 @@ void MorseConnection::onDialogsReady()
         Telegram::Client::MessagesOperation *historyOp = m_client->messagingApi()->getHistory(peer, options);
         historyOp->connectToFinished(this, &MorseConnection::onHistoryReceived, historyOp);
     }
+
+    onContactListChanged();
 }
 
 void MorseConnection::onDisconnected()
