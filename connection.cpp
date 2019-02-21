@@ -52,7 +52,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-//#define DIALOGS_AS_CONTACTLIST
+#define DIALOGS_AS_CONTACTLIST
 //#define LOCAL_SERVER
 
 #include <QDir>
@@ -591,19 +591,21 @@ void MorseConnection::onConnectionReady()
     //m_core->setOnlineStatus(m_wantedPresence == c_onlineSimpleStatusKey);
     //m_core->setMessageReceivingFilter(TelegramNamespace::MessageFlagNone);
 
+#ifdef DIALOGS_AS_CONTACTLIST
     if (m_dialogs) {
         onDialogsReady();
     } else {
         m_dialogs = m_client->messagingApi()->getDialogList();
         connect(m_dialogs->becomeReady(), &PendingOperation::finished, this, &MorseConnection::onDialogsReady);
     }
-
+#else
     if (m_contacts) {
         onContactListChanged();
     } else {
         m_contacts = m_client->contactsApi()->getContactList();
         connect(m_contacts->becomeReady(), &PendingOperation::finished, this, &MorseConnection::onContactListChanged);
     }
+#endif
 
     onSelfUserAvailable();
     checkConnected();
