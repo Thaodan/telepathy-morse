@@ -201,6 +201,8 @@ void MorseTextChannel::onMessageReceived(const Telegram::Message &message)
     header[QLatin1String("message-sent")]  = QDBusVariant(message.timestamp);
 
     bool broadcast = false;
+    bool isOut = message.flags & TelegramNamespace::MessageFlagOut;
+
     if (m_targetPeer.type == Telegram::Peer::Channel) {
         Telegram::ChatInfo info;
         if (!m_client->dataStorage()->getChatInfo(&info, m_targetPeer.id)) {
@@ -212,7 +214,7 @@ void MorseTextChannel::onMessageReceived(const Telegram::Message &message)
     if (broadcast) {
         header[QLatin1String("message-sender")]    = QDBusVariant(m_targetHandle);
         header[QLatin1String("message-sender-id")] = QDBusVariant(m_targetPeer.toString());
-    } else if (message.flags & TelegramNamespace::MessageFlagOut) {
+    } else if (isOut) {
         header[QLatin1String("message-sender")]    = QDBusVariant(m_connection->selfHandle());
         header[QLatin1String("message-sender-id")] = QDBusVariant(m_connection->selfID());
     } else {
@@ -220,6 +222,17 @@ void MorseTextChannel::onMessageReceived(const Telegram::Message &message)
         header[QLatin1String("message-sender")]    = QDBusVariant(m_connection->ensureHandle(senderId));
         header[QLatin1String("message-sender-id")] = QDBusVariant(senderId.toString());
     }
+
+    Telegram::DialogInfo dialogInfo;
+    m_client->dataStorage()->getDialogInfo(&dialogInfo, m_targetPeer);
+
+    bool isRead = isOut
+            ? (dialogInfo.readOutboxMaxId() >= message.id)
+            : (dialogInfo.readInboxMaxId() >= message.id);
+
+    header[QLatin1String("delivery-status")] = QDBusVariant(isRead
+                                                            ? Tp::DeliveryStatusRead
+                                                            : Tp::DeliveryStatusAccepted);
 
     MorseDialogState dialogState = m_connection->getDialogState(m_targetPeer);
 
@@ -234,7 +247,7 @@ void MorseTextChannel::onMessageReceived(const Telegram::Message &message)
         // Alternatively, client can sort messages in order of message-sent.
         header[QLatin1String("message-received")]  = QDBusVariant(message.timestamp);
     } else {
-        uint currentTimestamp = QDateTime::currentMSecsSinceEpoch() / 1000;
+        uint currentTimestamp = static_cast<uint>(QDateTime::currentMSecsSinceEpoch() / 1000ll);
         header[QLatin1String("message-received")]  = QDBusVariant(currentTimestamp);
     }
     partList << header;

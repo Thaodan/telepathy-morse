@@ -32,6 +32,7 @@
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
+    app.setOrganizationName(QLatin1String("TelepathyIM"));
     app.setApplicationName(QLatin1String("telepathy-morse"));
 
     Tp::registerTypes();

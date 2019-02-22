@@ -54,6 +54,8 @@
 
 #define DIALOGS_AS_CONTACTLIST
 //#define LOCAL_SERVER
+//#define BROADCAST_AS_CONTACT
+#define FETCH_NEW_DIALOG_MESSAGES
 
 #include <QDir>
 #include <QFile>
@@ -61,7 +63,7 @@
 #include "extras/CFileManager.hpp"
 
 static constexpr int c_selfHandle = 1;
-static const QString c_accountSubdir = QLatin1String("telegram-qt/secrets");
+static const QString c_telegramAccountSubdir = QLatin1String("telegram-qt/accounts");
 static const QString c_accountFile = QLatin1String("account.bin");
 static const QString c_stateFile = QLatin1String("state.json");
 
@@ -1352,7 +1354,7 @@ void MorseConnection::onDialogsReady()
         Telegram::DialogInfo info;
         dataStorage->getDialogInfo(&info, peer);
         Telegram::Client::MessageFetchOptions options;
-        options.limit = 3;
+        options.limit = 20;
         if (m_dialogsState.contains(peer)) {
             const quint32 lastReceivedMessageId = m_dialogsState.value(peer).lastMessageId;
             if (lastReceivedMessageId < info.lastMessageId()) {
@@ -1365,11 +1367,12 @@ void MorseConnection::onDialogsReady()
         } else {
             qDebug() << Q_FUNC_INFO << "New dialog" << peer;
             MorseDialogState state;
-            state.lastMessageId = info.lastMessageId();
             m_dialogsState.insert(peer, state);
         }
+#ifdef FETCH_NEW_DIALOG_MESSAGES
         Telegram::Client::MessagesOperation *historyOp = m_client->messagingApi()->getHistory(peer, options);
         historyOp->connectToFinished(this, &MorseConnection::onHistoryReceived, historyOp);
+#endif
     }
 
     onContactListChanged();
@@ -1540,15 +1543,15 @@ void MorseConnection::checkConnected()
 
 void MorseConnection::loadState()
 {
-    QFile secretFile(QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + c_accountSubdir + m_selfPhone);
+    QFile stateFile(getAccountDataDirectory() + QLatin1Char('/') + c_stateFile);
 
-    if (!secretFile.open(QIODevice::ReadOnly)) {
+    if (!stateFile.open(QIODevice::ReadOnly)) {
         qDebug() << Q_FUNC_INFO << "Unable to open file" << "for account" << m_selfPhone;
         return;
     }
     m_dialogsState.clear();
 
-    const QByteArray data = secretFile.readAll();
+    const QByteArray data = stateFile.readAll();
     qDebug() << Q_FUNC_INFO << m_selfPhone << "(" << data.size() << "bytes)";
     const QJsonObject root = QJsonDocument::fromJson(data).object();
     const QJsonArray dialogArray = root.value(QLatin1String("dialogs")).toArray();
@@ -1594,12 +1597,12 @@ void MorseConnection::saveState()
 
     QDir dir;
     dir.mkpath(getAccountDataDirectory());
-    QFile secretFile(getAccountDataDirectory() + QStringLiteral("/state.json"));
-    qDebug() << Q_FUNC_INFO << "Path:" << secretFile.fileName();
+    QFile stateFile(getAccountDataDirectory() + QLatin1Char('/') + c_stateFile);
+    qDebug() << Q_FUNC_INFO << "Path:" << stateFile.fileName();
 
-    if (secretFile.open(QIODevice::WriteOnly)) {
+    if (stateFile.open(QIODevice::WriteOnly)) {
         qDebug() << Q_FUNC_INFO << m_selfPhone << "(" << data.size() << "bytes)";
-        if (secretFile.write(data) == data.size()) {
+        if (stateFile.write(data) == data.size()) {
             return;
         }
     }
@@ -1610,8 +1613,9 @@ QString MorseConnection::getAccountDataDirectory() const
 {
     const QString serverIdentifier = m_serverAddress.isEmpty() ? QStringLiteral("official") : m_serverAddress;
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-            + QLatin1Char('/') + c_accountSubdir
-            + QLatin1Char('/') + serverIdentifier;
+            + QLatin1Char('/') + c_telegramAccountSubdir
+            + QLatin1Char('/') + serverIdentifier
+            + QLatin1Char('/') + m_selfPhone;
 }
 
 bool MorseConnection::peerIsRoom(const Telegram::Peer peer) const
@@ -1619,6 +1623,7 @@ bool MorseConnection::peerIsRoom(const Telegram::Peer peer) const
     if (peer.type == Telegram::Peer::User) {
         return false;
     }
+#ifdef BROADCAST_AS_CONTACT
     if (peer.type == Telegram::Peer::Channel) {
         Telegram::ChatInfo info;
         if (m_client->dataStorage()->getChatInfo(&info, peer)) {
@@ -1627,6 +1632,7 @@ bool MorseConnection::peerIsRoom(const Telegram::Peer peer) const
             }
         }
     }
+#endif
     return true;
 }
 
