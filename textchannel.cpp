@@ -252,6 +252,21 @@ void MorseTextChannel::onMessageReceived(const Telegram::Message &message)
     }
     partList << header;
 
+    if (message.forwardFromPeer().isValid()) {
+        const MorseIdentifier id = message.forwardFromPeer();
+        const uint fromHandle = m_connection->ensureHandle(id);
+        Tp::MessagePart forwardHeader;
+        forwardHeader[QLatin1String("interface")] = QDBusVariant(TP_QT_IFACE_CHANNEL + QLatin1String(".Interface.Forwarding"));
+        forwardHeader[QLatin1String("message-sender")]    = QDBusVariant(fromHandle);
+        forwardHeader[QLatin1String("message-sender-id")] = QDBusVariant(id.toString());
+        const QString alias = m_connection->getAlias(id);
+        if (!alias.isEmpty()) {
+            forwardHeader[QLatin1String("message-sender-alias")] = QDBusVariant(alias);
+        }
+        forwardHeader[QLatin1String("message-sent")] = QDBusVariant(message.fwdTimestamp);
+        partList << forwardHeader;
+    }
+
     Tp::MessagePartList body;
     if (!message.text.isEmpty()) {
         Tp::MessagePart text;
