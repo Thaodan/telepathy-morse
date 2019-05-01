@@ -22,9 +22,9 @@
 
 #include <QPointer>
 
-#include <TelepathyQt/BaseChannel>
+#include <TelegramQt/TelegramNamespace>
 
-#include "identifier.hpp"
+#include <TelepathyQt/BaseChannel>
 
 class QTimer;
 
@@ -32,6 +32,17 @@ class CTelegramCore;
 
 class MorseTextChannel;
 class MorseConnection;
+
+namespace Telegram {
+
+namespace Client {
+
+class Client;
+class MessagingApi;
+
+} // Client namespace
+
+} // Telegram namespace
 
 typedef Tp::SharedPtr<MorseTextChannel> MorseTextChannelPtr;
 
@@ -64,18 +75,17 @@ public:
     void messageAcknowledgedCallback(const QString &messageId);
 
 public slots:
-    void whenContactChatStateComposingChanged(quint32 userId, TelegramNamespace::MessageAction action);
-    void whenContactRoomStateComposingChanged(quint32 chatId, quint32 userId, TelegramNamespace::MessageAction action);
+    void onMessageActionChanged(const Telegram::Peer &peer, quint32 userId, TelegramNamespace::MessageAction action);
     void setMessageAction(quint32 userId, TelegramNamespace::MessageAction action);
     void onMessageReceived(const Telegram::Message &message);
     void updateChatParticipants(const Tp::UIntList &handles);
 
-    void whenChatDetailsChanged(quint32 chatId, const Tp::UIntList &handles);
+    void onChatDetailsChanged(quint32 chatId, const Tp::UIntList &handles);
 
 protected slots:
     void setMessageInboxRead(Telegram::Peer peer, quint32 messageId);
     void setMessageOutboxRead(Telegram::Peer peer, quint32 messageId);
-    void setResolvedMessageId(quint64 randomId, quint32 resolvedId);
+    void setResolvedMessageId(Telegram::Peer peer, quint64 messageRandomId, quint32 messageId);
     void reactivateLocalTyping();
 
 protected:
@@ -85,13 +95,14 @@ private:
     MorseTextChannel(MorseConnection *morseConnection, Tp::BaseChannel *baseChannel);
 
     MorseConnection *m_connection;
-    CTelegramCore *m_client;
+    Telegram::Client::Client *m_client;
+    Telegram::Client::MessagingApi *m_api = nullptr;
 
     uint m_targetHandle;
     uint m_targetHandleType;
     uint m_selfHandle;
-    MorseIdentifier m_targetID;
-    MorseIdentifier m_selfID;
+    Telegram::Peer m_targetPeer;
+    Telegram::Peer m_selfPeer;
 
     Tp::BaseChannelTextTypePtr m_channelTextType;
     Tp::BaseChannelMessagesInterfacePtr m_messagesIface;

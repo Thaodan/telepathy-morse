@@ -32,6 +32,14 @@ public:
     virtual ~MorseProtocol();
 
     static QString getAccount(const QVariantMap &parameters);
+    static QString getServerAddress(const QVariantMap &parameters);
+    static quint16 getServerPort(const QVariantMap &parameters);
+    static QString getServerKey(const QVariantMap &parameters);
+    static QString getProxyType(const QVariantMap &parameters);
+    static QString getProxyAddress(const QVariantMap &parameters);
+    static quint16 getProxyPort(const QVariantMap &parameters);
+    static QString getProxyUsername(const QVariantMap &parameters);
+    static QString getProxyPassword(const QVariantMap &parameters);
     static uint getKeepAliveInterval(const QVariantMap &parameters, uint defaultValue);
 
 private:
